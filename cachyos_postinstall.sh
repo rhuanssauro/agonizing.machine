@@ -20,7 +20,7 @@ print_banner() {
     echo "╔════════════════════════════════════════════════════╗"
     echo "║   CachyOS Post-Installation Setup                 ║"
     echo "║   Zero Touch Provisioning + Network Automation    ║"
-    echo "║        Razer Blade 13 + KDE Plasma                 ║"
+    echo "║              KDE Plasma Edition                    ║"
     echo "╚════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
@@ -117,18 +117,22 @@ install_packages() {
     
     print_success "KDE Plasma packages installed!"
     
-    # Razer support
-    print_info "Installing Razer support..."
-    sudo pacman -S --needed --noconfirm openrazer-meta || {
-        print_warning "OpenRazer not found in repos, will try AUR later"
-    }
+    # Optional laptop packages
+    print_info "Installing laptop-specific utilities..."
+    sudo pacman -S --needed --noconfirm \
+        tlp \
+        powertop \
+        acpi \
+        lm_sensors || print_warning "Some laptop utilities may not be available"
+    
+    print_success "Laptop utilities installed!"
     
     print_success "All packages installed!"
 }
 
 # Enable services
 enable_services() {
-    print_step "Step 3/11: Enabling Services"
+    print_step "Step 3/10: Enabling Services"
     
     print_info "Enabling Docker service..."
     sudo systemctl enable docker.service
@@ -140,33 +144,28 @@ enable_services() {
     sudo systemctl start sshd.service
     print_success "SSH enabled and started"
     
-    print_info "Enabling OpenRazer daemon..."
-    sudo systemctl enable openrazer-daemon.service 2>/dev/null || print_warning "OpenRazer daemon not available"
-    sudo systemctl start openrazer-daemon.service 2>/dev/null || true
-    print_success "OpenRazer configured"
+    print_info "Enabling TLP (power management)..."
+    sudo systemctl enable tlp.service 2>/dev/null || print_warning "TLP not available"
+    sudo systemctl start tlp.service 2>/dev/null || true
+    print_success "Power management configured"
     
     print_success "All services enabled!"
 }
 
 # Configure user
 configure_user() {
-    print_step "Step 4/11: Configuring User Permissions"
+    print_step "Step 4/10: Configuring User Permissions"
     
     print_info "Adding user to docker group..."
     sudo usermod -aG docker $USER
     print_success "User added to docker group"
-    
-    print_info "Adding user to input group (for OpenRazer)..."
-    sudo usermod -aG input $USER
-    sudo usermod -aG plugdev $USER 2>/dev/null || true
-    print_success "User added to hardware groups"
     
     print_warning "You'll need to log out and back in for group changes to take effect"
 }
 
 # KDE Plasma optimizations
 configure_plasma() {
-    print_step "Step 5/11: Applying KDE Plasma Optimizations"
+    print_step "Step 5/10: Applying KDE Plasma Optimizations"
     
     print_info "Configuring KDE Plasma settings..."
     
@@ -240,7 +239,7 @@ configure_plasma() {
 
 # Setup bash aliases
 setup_aliases() {
-    print_step "Step 6/11: Setting Up Shell Environment"
+    print_step "Step 6/10: Setting Up Shell Environment"
     
     print_info "Creating bash aliases..."
     
@@ -326,7 +325,7 @@ ALIASEOF
 
 # Git configuration
 configure_git() {
-    print_step "Step 7/11: Configuring Git"
+    print_step "Step 7/10: Configuring Git"
     
     if [ -z "$(git config --global user.name)" ]; then
         echo ""
@@ -345,6 +344,48 @@ configure_git() {
     else
         print_info "Git already configured as: $(git config --global user.name) <$(git config --global user.email)>"
     fi
+}
+
+# Razer-specific setup
+configure_razer() {
+    print_step "Step 8/11: Razer Blade 13 Specific Setup"
+    
+    print_info "Checking kernel parameters..."
+    
+    # Check if we need intel_idle fix
+    if ! grep -q "intel_idle.max_cstate" /proc/cmdline 2>/dev/null; then
+        print_warning "Screen blanking fix not detected in kernel parameters"
+        print_info "If you experience screen blanking issues, add this to GRUB:"
+        echo "         intel_idle.max_cstate=4"
+        echo ""
+        echo "  Edit: sudo nano /etc/default/grub"
+        echo "  Add to GRUB_CMDLINE_LINUX_DEFAULT"
+        echo "  Then: sudo grub-mkconfig -o /boot/grub/grub.cfg"
+    fi
+    
+    print_info "Creating Razer helper scripts..."
+    
+    # Create keyboard brightness script
+    cat > ~/razer-brightness.sh << 'RAZEREOF'
+#!/bin/bash
+# Razer Keyboard Brightness Control
+case "$1" in
+    up)
+        echo "Brightness up not yet implemented"
+        ;;
+    down)
+        echo "Brightness down not yet implemented"
+        ;;
+    *)
+        echo "Usage: $0 {up|down}"
+        ;;
+esac
+RAZEREOF
+    chmod +x ~/razer-brightness.sh
+    
+    print_success "Razer-specific setup complete!"
+    
+    print_info "For advanced fan control, consider installing razer-laptop-control from AUR"
 }
 
 # Razer-specific setup
@@ -454,7 +495,7 @@ ANSIBLEEOF
 
 # Install Terraform
 install_terraform() {
-    print_step "Step 10/11: Installing Terraform"
+    print_step "Step 9/10: Installing Terraform"
     
     print_info "Checking for latest Terraform version..."
     
@@ -541,7 +582,7 @@ TFEOF
 
 # Install additional network tools
 install_network_tools() {
-    print_step "Step 11/11: Installing Network Automation Tools"
+    print_step "Step 10/10: Installing Network Automation Tools"
     
     print_info "Installing network utilities..."
     sudo pacman -S --needed --noconfirm \
@@ -667,7 +708,7 @@ print_summary() {
     echo "  ✓ KDE Plasma Addons & Tools"
     echo "  ✓ KDE Connect (phone integration)"
     echo "  ✓ Kate, Konsole, Dolphin plugins"
-    echo "  ✓ OpenRazer (Razer keyboard support)"
+    echo "  ✓ TLP (power management)"
     echo "  ✓ Python 3 + pip + virtualenv"
     echo ""
     
@@ -684,7 +725,7 @@ print_summary() {
     echo -e "${YELLOW}Enabled Services:${NC}"
     echo "  ✓ Docker (running)"
     echo "  ✓ SSH Server (running)"
-    echo "  ✓ OpenRazer Daemon (running)"
+    echo "  ✓ TLP Power Management (running)"
     echo ""
     
     echo -e "${YELLOW}GNOME Optimizations:${NC}"
@@ -764,14 +805,13 @@ main() {
     echo "  1. Update your system"
     echo "  2. Install essential packages (Docker, Git, development tools)"
     echo "  3. Install KDE Plasma enhancements"
-    echo "  4. Configure services (Docker, SSH, OpenRazer)"
-    echo "  5. Optimize KDE Plasma for Razer Blade 13"
+    echo "  4. Configure services (Docker, SSH, TLP power management)"
+    echo "  5. Optimize KDE Plasma for laptop use"
     echo "  6. Set up useful shell aliases"
     echo "  7. Configure Git"
-    echo "  8. Configure Razer-specific settings"
-    echo "  9. Install Ansible with Cisco, Palo Alto, Proxmox plugins"
-    echo "  10. Install Terraform with network providers"
-    echo "  11. Install network automation tools and libraries"
+    echo "  8. Install Ansible with Cisco, Palo Alto, Proxmox plugins"
+    echo "  9. Install Terraform with network providers"
+    echo "  10. Install network automation tools and libraries"
     echo ""
     echo -e "${YELLOW}Estimated time: 10-15 minutes${NC}"
     echo ""
@@ -786,7 +826,6 @@ main() {
     configure_plasma
     setup_aliases
     configure_git
-    configure_razer
     install_ansible
     install_terraform
     install_network_tools
