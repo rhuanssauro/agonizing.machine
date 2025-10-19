@@ -112,7 +112,8 @@ install_packages() {
         filelight \
         spectacle \
         okular \
-        plasma-browser-integration
+        plasma-browser-integration \
+        kde-cli-tools
     
     print_success "KDE Plasma packages installed!"
     
@@ -167,49 +168,74 @@ configure_user() {
 configure_plasma() {
     print_step "Step 5/11: Applying KDE Plasma Optimizations"
     
+    print_info "Configuring KDE Plasma settings..."
+    
+    # Verify kde-cli-tools is installed
+    if ! command -v kwriteconfig5 &> /dev/null; then
+        print_warning "kwriteconfig5 still not found after installation"
+        print_info "Installing kde-cli-tools package..."
+        sudo pacman -S --needed --noconfirm kde-cli-tools || true
+    fi
+    
+    # Wait a moment for package to be available
+    sleep 1
+    
+    # Double check
+    if ! command -v kwriteconfig5 &> /dev/null; then
+        print_warning "Could not install kwriteconfig5 - skipping KDE auto-configuration"
+        print_info "KDE settings can be configured manually via System Settings"
+        print_info "Run: systemsettings"
+        return 0
+    fi
+    
+    print_success "kwriteconfig5 is available!"
+    
+    # Configure touchpad settings
     print_info "Configuring touchpad settings..."
-    # KDE touchpad settings via kwriteconfig5
-    kwriteconfig5 --file kcminputrc --group Mouse --key XLbInptPointerAcceleration 2
-    kwriteconfig5 --file kcminputrc --group Libinput --group 'pointer' --key PointerAcceleration 2
+    kwriteconfig5 --file kcminputrc --group Libinput --group 'touchpad' --key TapToClick true 2>/dev/null || print_warning "Touchpad tap-to-click config skipped"
+    kwriteconfig5 --file kcminputrc --group Libinput --group 'touchpad' --key NaturalScroll true 2>/dev/null || print_warning "Touchpad natural scroll config skipped"
+    print_success "Touchpad settings configured"
     
-    # Enable touchpad tap-to-click
-    kwriteconfig5 --file kcminputrc --group Libinput --group 'touchpad' --key TapToClick true
-    kwriteconfig5 --file kcminputrc --group Libinput --group 'touchpad' --key NaturalScroll true
-    print_success "Touchpad optimized"
-    
-    print_info "Configuring interface settings..."
     # Set dark theme
-    kwriteconfig5 --file kdeglobals --group General --key ColorScheme BreezeDark
-    plasma-apply-colorscheme BreezeDark 2>/dev/null || true
+    print_info "Applying Breeze Dark theme..."
+    kwriteconfig5 --file kdeglobals --group General --key ColorScheme BreezeDark 2>/dev/null || true
     
-    # Show battery percentage
-    kwriteconfig5 --file plasmashellrc --group BatteryMonitor --key showPercentage true
+    # Try lookandfeeltool if available
+    if command -v lookandfeeltool &> /dev/null; then
+        lookandfeeltool -a org.kde.breezedark.desktop 2>/dev/null || true
+    fi
+    print_success "Theme configured"
     
     # Configure power management
-    kwriteconfig5 --file powermanagementprofilesrc --group AC --group DimDisplay --key idleTime 600000
-    kwriteconfig5 --file powermanagementprofilesrc --group Battery --group DimDisplay --key idleTime 300000
-    print_success "Interface optimized"
+    print_info "Configuring power management..."
+    kwriteconfig5 --file powermanagementprofilesrc --group AC --group DimDisplay --key idleTime 600000 2>/dev/null || true
+    kwriteconfig5 --file powermanagementprofilesrc --group Battery --group DimDisplay --key idleTime 300000 2>/dev/null || true
+    kwriteconfig5 --file powermanagementprofilesrc --group Battery --group SuspendSession --key idleTime 900000 2>/dev/null || true
+    print_success "Power management configured"
     
+    # Configure desktop effects
     print_info "Configuring desktop effects..."
-    # Enable desktop effects but optimize for performance
-    kwriteconfig5 --file kwinrc --group Compositing --key Enabled true
-    kwriteconfig5 --file kwinrc --group Compositing --key Backend OpenGL
-    kwriteconfig5 --file kwinrc --group Compositing --key GLCore true
-    print_success "Desktop effects optimized"
+    kwriteconfig5 --file kwinrc --group Compositing --key Enabled true 2>/dev/null || true
+    kwriteconfig5 --file kwinrc --group Compositing --key Backend OpenGL 2>/dev/null || true
+    kwriteconfig5 --file kwinrc --group Compositing --key GLCore true 2>/dev/null || true
+    print_success "Desktop effects configured"
     
-    print_info "Configuring file manager (Dolphin)..."
-    # Show hidden files
-    kwriteconfig5 --file dolphinrc --group General --key ShowHiddenFiles true
-    # Enable thumbnails
-    kwriteconfig5 --file dolphinrc --group PreviewSettings --key Plugins "imagethumbnail,jpegthumbnail"
-    print_success "File manager configured"
+    # Configure Dolphin file manager
+    print_info "Configuring Dolphin file manager..."
+    kwriteconfig5 --file dolphinrc --group General --key ShowHiddenFiles true 2>/dev/null || true
+    kwriteconfig5 --file dolphinrc --group General --key ShowFullPath true 2>/dev/null || true
+    kwriteconfig5 --file dolphinrc --group PreviewSettings --key Plugins "imagethumbnail,jpegthumbnail,fontthumbnail" 2>/dev/null || true
+    print_success "Dolphin configured"
     
-    # Restart plasmashell to apply changes
-    print_info "Applying changes (may see brief screen flicker)..."
-    killall plasmashell 2>/dev/null && kstart5 plasmashell &>/dev/null &
-    sleep 2
+    # Configure Konsole
+    print_info "Configuring Konsole terminal..."
+    kwriteconfig5 --file konsolerc --group Desktop Entry --key DefaultProfile "Default.profile" 2>/dev/null || true
+    print_success "Konsole configured"
     
-    print_success "KDE Plasma optimized for Razer Blade 13!"
+    print_warning "Note: KDE settings will take full effect after logout/login"
+    print_info "Or manually restart KDE: kquitapp5 plasmashell && kstart5 plasmashell"
+    
+    print_success "KDE Plasma configuration complete!"
 }
 
 # Setup bash aliases
