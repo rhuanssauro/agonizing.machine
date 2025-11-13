@@ -109,7 +109,13 @@ update_system() {
     print_step "Step 1/10: Updating System"
     
     print_info "Updating package database and system..."
-    sudo $PKG_UPDATE
+    
+    if [ "$DISTRO_FAMILY" = "debian" ]; then
+        sudo apt update
+        sudo apt upgrade -y
+    else
+        sudo dnf update -y
+    fi
     
     print_success "System updated!"
 }
@@ -121,7 +127,7 @@ install_base_packages() {
     print_info "Installing core packages..."
     
     if [ "$DISTRO_FAMILY" = "debian" ]; then
-        sudo $PKG_INSTALL \
+        sudo apt install -y \
             build-essential \
             git \
             curl \
@@ -145,7 +151,7 @@ install_base_packages() {
             gnupg \
             lsb-release
     else
-        sudo $PKG_INSTALL \
+        sudo dnf install -y \
             @development-tools \
             git \
             curl \
@@ -170,7 +176,7 @@ install_base_packages() {
     # Server/CLI utilities
     print_info "Installing system utilities..."
     if [ "$DISTRO_FAMILY" = "debian" ]; then
-        sudo $PKG_INSTALL \
+        sudo apt install -y \
             screen \
             zsh \
             fish \
@@ -182,7 +188,7 @@ install_base_packages() {
             sysstat \
             dstat || print_warning "Some utilities not available"
     else
-        sudo $PKG_INSTALL \
+        sudo dnf install -y \
             screen \
             zsh \
             fish \
@@ -220,11 +226,11 @@ install_docker() {
           $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         
         sudo apt update
-        sudo $PKG_INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     else
         # Docker for Fedora
         sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-        sudo $PKG_INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+        sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     fi
     
     print_success "Docker installed!"
@@ -393,9 +399,9 @@ install_ansible() {
         if [ "$DISTRO" = "ubuntu" ]; then
             sudo apt-add-repository --yes --update ppa:ansible/ansible 2>/dev/null || true
         fi
-        sudo $PKG_INSTALL ansible
+        sudo apt install -y ansible
     else
-        sudo $PKG_INSTALL ansible
+        sudo dnf install -y ansible
     fi
     
     print_success "Ansible installed!"
@@ -590,7 +596,7 @@ install_network_tools() {
     print_info "Installing network utilities..."
     
     if [ "$DISTRO_FAMILY" = "debian" ]; then
-        sudo $PKG_INSTALL \
+        sudo apt install -y \
             nmap \
             tcpdump \
             traceroute \
@@ -601,7 +607,7 @@ install_network_tools() {
             iperf3 \
             wireshark-common
     else
-        sudo $PKG_INSTALL \
+        sudo dnf install -y \
             nmap \
             tcpdump \
             traceroute \
